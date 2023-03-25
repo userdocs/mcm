@@ -1,0 +1,65 @@
+name: mcm build and release
+
+on:
+  - workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:edge
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        arch_type:
+          [
+            aarch64-linux-musl,
+            arm-linux-musleabihf,
+            armv6-linux-musleabihf,
+            armv7l-linux-musleabihf,
+            i486-linux-musl,
+            i686-linux-musl,
+            x86_64-linux-musl,
+          ]
+
+    name: mcm ${{ matrix.arch_type }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: apk install build deps
+        run: >
+          apk add autoconf automake bash bison build-base 
+          cmake ccache curl findutils flex git graphviz libarchive-tools libtool linux-headers ncurses-dev 
+          patch perl pkgconf python3 python3-dev re2c rsync tar texinfo ttf-freefont xz zip
+
+      - name: Use our example config.mak
+        run: mv -f config.mak.example config.mak
+
+      - name: install ${{ matrix.arch_type }} toolchain
+        run: make -j"$(nproc)" install TARGET=${{ matrix.arch_type }} OUTPUT=mcm_build/${{ matrix.arch_type }}
+
+      - name: archive ${{ matrix.arch_type }} toolchain
+        run: |
+          cd mcm_build
+          XZ_OPT="-9" tar -cvJf ${{ matrix.arch_type }}.tar.xz ${{ matrix.arch_type }}/
+
+      - name: set tag via date
+        run: echo "github_tag=$(date +"%y%V")" >> $GITHUB_ENV
+
+      - name: set release info dynamically from config.mak
+        run: printf "%s\n" "$(sed -rn "/CONFIG_SUB_REV = (.*)/,/LINUX_VER = (.*)/p" config.mak)" > release_body.md
+
+      - name: Create release - tag - assets
+        uses: ncipollo/release-action@v1
+        with:
+          prerelease: false
+          artifacts: "mcm_build/${{ matrix.arch_type }}.tar.xz"
+          replacesArtifacts: true
+          tag: "${{ env.github_tag }}"
+          name: "musl-cross-make toolchains"
+          bodyFile: "release_body.md"
+          allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
