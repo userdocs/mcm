@@ -55,11 +55,11 @@ jobs:
         run: sed "s|COMMON_CONFIG += --disable-gprofng|COMMON_CONFIG += ${{ matrix.arch_config }} --disable-gprofng|" -i config.mak
 
       - name: install ${{ matrix.arch_type }} toolchain
-        run: make -j"$(nproc)" install TARGET=${{ matrix.arch_type }} OUTPUT=build/${{ matrix.arch_type }}
+        run: make -j"$(nproc)" install TARGET="${{ matrix.arch_type }}" OUTPUT="$(pwd)/build/${{ matrix.arch_type }}"
 
       - name: archive ${{ matrix.arch_type }} toolchain
         run: |
-          cd mcm_build
+          cd "$(pwd)/build"
           XZ_OPT="-9" tar -cvJf ${{ matrix.arch_type }}.tar.xz ${{ matrix.arch_type }}/
 
       - name: set tag via date
