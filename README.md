@@ -61,8 +61,6 @@ believed to work:
 - `sh*[eb]-linux-musl[fdpic][sf]`
 - `x86_64-linux-musl[x32]`
 
-
-
 How it works
 ------------
 
